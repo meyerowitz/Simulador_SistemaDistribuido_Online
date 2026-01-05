@@ -27,12 +27,21 @@
             background: var(--bg-color); 
             color: white; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            align-items: center; 
+            margin: 0;
+            padding: 20px;
+        }
+        .body { 
+            background: var(--bg-color); 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             margin: 0;
             padding: 20px;
         }
+
 
         h1 { color: var(--accent); margin-bottom: 5px; }
         
@@ -155,10 +164,70 @@
         button:disabled { background: #555; cursor: not-allowed; }
 
         #status-log { margin-top: 15px; font-style: italic; color: #00ffcc; font-size: 0.9em; }
+
+
+
+        .namespace-dashboard {
+    margin-top: 30px;
+    padding: 20px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    border: 1px solid #333;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.namespace-dashboard h3 {
+    color: #00ffcc;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.namespace-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ddd;
+    font-size: 0.9rem;
+}
+
+.namespace-table th {
+    text-align: left;
+    background: #252525;
+    padding: 12px;
+    color: #888;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.namespace-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.namespace-table code {
+    background: #000;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: #ffca28; /* Dorado para que resalte el namespace */
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Colores por Tier */
+.tier-presentation { border-left: 4px solid cyan; }
+.tier-application { border-left: 4px solid orange; }
+.tier-core { border-left: 4px solid #ff4444; }
+.tier-aux { border-left: 4px solid #aa66cc; }
+.tier-data { border-left: 4px solid #00C851; }
+
+.namespace-table tr:hover {
+    background: #222;
+}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/leader-line-new/leader-line.min.js"></script>
 </head>
 <body>
+<div class="body">
     
     <h1>Simulador de Sistema de Subastas</h1>
     
@@ -219,6 +288,7 @@
 <div class="controls">
         <button onclick="addUsers(20)">+ 20 Usuarios</button>
         <button onclick="simulateBid()" id="bid-btn">Ejecutar Puja en Tiempo Real</button>
+        
         <div id="status-log">Esperando interacción...</div>
     </div>
     </div>
@@ -317,11 +387,11 @@
         "Inbound: POST /pujas - HTTPS",
         "Discovery: Lookup /servicios/subastas/líder",
         "Gossip: Estado HEALTHY confirmado"
-    ],"com.subastas.gateway","Autenticar y Enrutar()");
+    ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
 
     await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
         "gRPC: Invocando ingresarNuevaPuja()..."
-    ],"com.subastas.core","gRPC: ingresarNuevaPuja()");
+    ],"com.subastas.core.auction","gRPC: ingresarNuevaPuja()"); //auction significa subasta en ingles
 
     await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
         "SQL: Iniciando Transacción ACID",
@@ -332,16 +402,14 @@
     
     // 1. Packet de regreso al usuario (Confirmación inmediata)
     // NO usamos 'await' aquí para que ocurra al mismo tiempo que lo demás
-    animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.ui","INSERT INTO pujas...").then(() => {
-        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"INSERT INTO pujas...","INSERT INTO pujas...").then(() => {
-            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"INSERT INTO pujas...","INSERT INTO pujas...");
+    animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.core.auction","Message: puja success").then(() => {
+        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gate","Message: puja success").then(() => {
+            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.client","Message: Puja registrada con exito usuario(___) vuelva pronto");
         });
     });
 
     // 2. CICLO 2: NOTIFICACIÓN (Asincrónico/Event-Driven)
-    // Este inicia desde el servicio de subastas hacia Kafka
-    log.innerText = "La puja fue registrada correctamente Estado: Disparando evento asincrónico a Kafka...";
-    
+
     await animatePacket(nodes.srvSub, nodes.kafka, 'yellow', [
         "Kafka: Publicando evento 'NuevaPujaMax'...",
         "Broker: Mensaje persistido en Log de eventos"
@@ -448,6 +516,87 @@ window.addEventListener('resize', () => {
     updateAllArrows();
 });
     </script>
+</div>
+<div class="namespace-dashboard">
+    <h3><i class="fas fa-network-wired"></i> Directorio de Namespaces (Service Registry)</h3>
+    <table class="namespace-table">
+        <thead>
+            <tr>
+                <th>Tier (Capa)</th>
+                <th>Componente</th>
+                <th>Namespace Jerárquico</th>
+                <th>Tecnología</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="tier-presentation">
+                <td>Presentation</td>
+                <td>Cliente Web</td>
+                <td><code>com.subastas.web.portal</code></td>
+                <td>JS / React</td>
+            </tr>
+            <tr class="tier-application">
+                <td>Application</td>
+                <td>API Gateway</td>
+                <td><code>com.subastas.gateway.main</code></td>
+                <td>Nginx / Node</td>
+            </tr>
+            <tr class="tier-core">
+                <td>Domain Core</td>
+                <td>Servicio Subastas</td>
+                <td><code>com.subastas.core.auction</code></td>
+                <td>gRPC / Go</td>
+            </tr>
+            <tr class="tier-core">
+                <td>Domain Core</td>
+                <td>Servicio Catálogo</td>
+                <td><code>com.subastas.core.catalog</code></td>
+                <td>gRPC / Go</td>
+            </tr>
+            <tr class="tier-core">
+                <td>Domain Core</td>
+                <td>Servicio Usuarios</td>
+                <td><code>com.subastas.core.identity</code></td>
+                <td>gRPC / Go</td>
+            </tr>
+            <tr class="tier-aux">
+                <td>Domain Aux</td>
+                <td>Broker Mensajería</td>
+                <td><code>com.subastas.infrastructure.kafka</code></td>
+                <td>Apache Kafka</td>
+            </tr>
+            <tr class="tier-aux">
+                <td>Domain Aux</td>
+                <td>Notificaciones</td>
+                <td><code>com.subastas.aux.notifier</code></td>
+                <td>WebSockets</td>
+            </tr>
+            <tr class="tier-data">
+                <td>Data Tier</td>
+                <td>BD Usuarios</td>
+                <td><code>com.subastas.data.mysql.identity</code></td>
+                <td>MySQL</td>
+            </tr>
+            <tr class="tier-data">
+                <td>Data Tier</td>
+                <td>BD Subastas</td>
+                <td><code>com.subastas.data.postgresql.auction</code></td>
+                <td>PostgreSQL</td>
+            </tr>
+            <tr class="tier-data">
+                <td>Data Tier</td>
+                <td>BD Catálogo</td>
+                <td><code>com.subastas.data.mongodb.catalog</code></td>
+                <td>MongoDB</td>
+            </tr>
+            <tr class="tier-data">
+                <td>Data Tier</td>
+                <td>Caché Real-time</td>
+                <td><code>com.subastas.data.redis.cache</code></td>
+                <td>Redis</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 </body>
-
 </html>
