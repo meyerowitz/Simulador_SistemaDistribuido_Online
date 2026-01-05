@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labubu Marketplace - Live Feed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #ec4899;
+            --bg: #070b14;
+            --card-bg: #151f32;
+            --text-main: #f8fafc;
+            --accent: #22c55e;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px;
+        }
+
+        .header-section {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-container {
+            position: relative;
+            width: 400px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 12px 45px;
+            background: var(--card-bg);
+            border: 1px solid #2d3a54;
+            border-radius: 15px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .search-container input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.2);
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+
+        /* Grid de Subastas */
+        .auction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .auction-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .auction-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .card-img {
+            width: 100%;
+            height: 180px;
+            background: #0a101e;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .card-img img {
+            height: 140px;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5));
+        }
+
+        .card-title {
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin: 0 0 5px;
+        }
+
+        .card-status {
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .card-price {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price-label { font-size: 0.8rem; color: #64748b; }
+        .price-val { font-weight: 800; color: var(--accent); font-size: 1.2rem; }
+
+        .btn-view {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            background: #2d3a54;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-view:hover {
+            background: var(--primary);
+        }
+
+        .live-tag {
+            background: #ef4444;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.65rem;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-section">
+    <div>
+        <h1 style="margin:0; font-weight:800; letter-spacing:-1px;">Labubu <span style="color:var(--primary)">Market</span></h1>
+        <p style="color:#64748b; margin:0">Explora subastas en tiempo real</p>
+    </div>
+    
+    <div class="search-container">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Buscar por modelo o colección..." onkeyup="filterAuctions()">
+    </div>
+</div>
+
+<div class="auction-grid" id="auctionGrid">
+    </div>
+
+<script>
+    const auctionGrid = document.getElementById('auctionGrid');
+    const searchInput = document.getElementById('searchInput');
+
+    // Datos base para generar subastas aleatorias
+    const models = ["The Monsters", "Zimomo Ultra", "Mokoko Pink", "Labubu Diver", "Skull Panda", "Hirono V3", "Dimoo Space"];
+    const colors = ["Edition Blue", "Limited Gold", "Secret Chase", "Original Matte", "Cyberpunk", "Pastel Dream"];
+
+    function createAuctionCard() {
+        const randomModel = models[Math.floor(Math.random() * models.length)];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const price = Math.floor(Math.random() * 500) + 100;
+        const id = Math.floor(Math.random() * 9000) + 1000;
+
+        const card = document.createElement('div');
+        card.className = 'auction-card';
+        card.innerHTML = `
+            <div class="card-img">
+                <img src="img/labubu.png" alt="Labubu">
+            </div>
+            <div class="card-status">
+                <span class="live-tag">LIVE</span>
+                <span>ID: #${id}</span>
+            </div>
+            <h3 class="card-title">${randomModel}</h3>
+            <p style="margin:0; font-size:0.85rem; color:#64748b">${randomColor}</p>
+            
+            <div class="card-price">
+                <div>
+                    <span class="price-label">Oferta Actual</span><br>
+                    <span class="price-val">$${price}</span>
+                </div>
+                <div style="text-align:right">
+                    <span class="price-label">Pujas</span><br>
+                    <span style="font-weight:bold">${Math.floor(Math.random()*20)}</span>
+                </div>
+            </div>
+            
+            <a href="Fachada.html"><button class="btn-view">Participar en Subasta</button></a>
+        `;
+
+        // Añadir al inicio de la cuadrícula
+        auctionGrid.prepend(card);
+
+        // Limitar a 12 subastas para no sobrecargar el navegador
+        if (auctionGrid.children.length > 12) {
+            auctionGrid.removeChild(auctionGrid.lastChild);
+        }
+    }
+
+    // Buscador funcional
+    function filterAuctions() {
+        const query = searchInput.value.toLowerCase();
+        const cards = document.getElementsByClassName('auction-card');
+
+        Array.from(cards).forEach(card => {
+            const title = card.querySelector('.card-title').innerText.toLowerCase();
+            if (title.includes(query)) {
+                card.style.display = "block";
+            } else {
+                card.style.display = "none";
+            }
+        });
+    }
+
+    // Motor de generación (Nuevas subastas cada 4-7 segundos)
+    function auctionEngine() {
+        const delay = Math.random() * (7000 - 4000) + 4000;
+        setTimeout(() => {
+            createAuctionCard();
+            auctionEngine();
+        }, delay);
+    }
+
+    // Inicializar con 4 subastas y arrancar motor
+    for(let i=0; i<4; i++) createAuctionCard();
+    auctionEngine();
+
+</script>
+
+</body>
+</html>

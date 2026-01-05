@@ -322,9 +322,9 @@
             <div class="box core" id="data-tier-db" style="margin-top: 5px;  ">
                 <div class="simple-box " style="width: 50px; margin-bottom: 5px; background-color: #e8a818;" id="BD-usuarios" >BD MySQL <br> usuarios</div>
                 <div class="simple-box " style="width: 50px; margin-bottom: 5px; background-color:#ff7a18;" id="BD-Subastas">BD PostgreSQL <br> Subastas</div>
-                <div class="simple-box " style="width: 50px; background-color:#e8a818;" id="Serv-Catalogo">MongoDB <br> Catalogo </div>
+                <div class="simple-box " style="width: 50px; background-color:#e8a818;" id="BD-Catalogo">MongoDB <br> Catalogo </div>
             </div>
-            <div class="box core" id="data-tier-redis" id="Serv-Redis"><small>(Cache Redis de pujas)</small>
+            <div class="box core" id="data-tier-redis" id="Serv-Redis"><small>(Cache Redis )</small>
                  <div class="simple-box " style="width: 50px; background-color:#e8a818;"  >Redis</div>
             </div>
         </div>
@@ -333,12 +333,17 @@
 <div class="controls">
         <button onclick="addUsers(20)">+ 20 Usuarios</button>
         <button onclick="simulateBid()" id="bid-btn">Ejecutar Puja en Tiempo Real</button>
-        
+        <button onclick="demoExclusionMutua()" id="bid-btn">Ejem: exclusión mutua</button>
+        <button onclick="demoDiscovery()" id="bid-btn">Service Discovery/Descubriento de nombres</button>
+        <h3>-----Otros eventos----</h3>
+        <button onclick="Login()" id="bid-btn">Loggin</button>
+        <button onclick="Catalogo()" id="bid-btn">Agregar un labubu a mi catalogo</button>
+        <button onclick="newSubasta()" id="bid-btn">Subastar un labubu</button>
         <div id="status-log">Esperando interacción...</div>
     </div>
     </div>
     <div style="border-bottom: 2px dashed #fffefe81  ; width: 100%;"></div>
-
+<a href="Subastas.html">com.subastas.web.portal</a>
 
     
 
@@ -360,7 +365,7 @@
         }
 
         
-// Variable global para mantener la referencia al paquete actual
+    // Variable global para mantener la referencia al paquete actual
     async function animatePacket(fromEl, toEl, color, logsArray = [],nombreDominio = "", accion = "") {
     // 1. Crear un NUEVO paquete exclusivo para esta llamada
     const packet = document.createElement('div');
@@ -407,93 +412,393 @@
     packet.remove();
     label.remove();
 }
-
-
-        async function simulateBid() {
-    if(users === 0) { addUsers(10); }
+    async function animatePacket2(fromEl, toEl, color, logsArray = [],nombreDominio = "", accion = "") {
+    // 1. Crear un NUEVO paquete exclusivo para esta llamada
+    const packet = document.createElement('div');
+    packet.className = 'packet';
     
-    // Referencias a los elementos
+    // 2. Crear el cartelito H2 flotante
+    const label = document.createElement('h2');
+    label.style.position = 'absolute';
+    label.style.color = color;
+    label.style.fontSize = '12px';
+    label.style.textAlign = 'center';
+    label.style.pointerEvents = 'none'; // Para que no interfiera con clics
+    label.style.left = '10px';
+    label.style.top='10px';
+    label.innerHTML = `<span style="color:white">${nombreDominio}</span><br>${accion}`;
+    document.body.appendChild(label);
+
+    const start = fromEl.getBoundingClientRect();
+    const end = toEl.getBoundingClientRect();
+
+    packet.style.background = color;
+    packet.style.boxShadow = `0 0 15px ${color}`;
+    packet.style.left = (start.left + start.width/2 - 7) + 'px';
+    packet.style.top = (start.top + start.height/2 + 10) + 'px';
+    document.body.appendChild(packet);
+
+    
+    // 2. Ejecutar la animación
+    const animation = packet.animate([
+        { left: packet.style.left, top: packet.style.top },
+        { left: (end.left + end.width/2 - 10) + 'px', top: (end.top + end.height/2 + 90) + 'px' }
+    ], { duration: 700, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+
+    await animation.finished;
+
+    // 3. Mostrar los logs (secuencialmente)
+    for (const message of logsArray) {
+        log.innerText = `Log: ${message}`;
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    // 4. Eliminar el paquete al terminar su tramo
+    // (Opcional: puedes dejarlo un segundo antes de borrarlo)
+    label.remove();
+    setTimeout(()=>{
+         packet.remove();
+    
+    }, 5900)
+   
+}
+
     const nodes = {
         users: document.getElementById('users-container'),
         gw: document.getElementById('Api-Gateway'),
         srvSub: document.getElementById('Serv-Subastas'),
+        srvCatalogo: document.getElementById('Serv-Catalogo'),
+        srvUser: document.getElementById('Serv-Usuarios'),
         bdSub: document.getElementById('BD-Subastas'),
+        bdCatalogo: document.getElementById('BD-Catalogo'),
+        bdUser: document.getElementById('BD-usuarios'),
         kafka: document.getElementById('box-kafka'),
         srvNotif: document.getElementById('Serv-Notificaciones'),
         redis: document.getElementById('data-tier-redis')
     };
 
-    const btn = document.getElementById('bid-btn');
-    btn.disabled = true;
+    async function Notificar(init, color){
+        await animatePacket(init, nodes.kafka, 'yellow', [
+                "Kafka: Publicando evento ...",
+                "Broker: Mensaje persistido en Log de eventos"
+            ],"com.subastas.infrastructure.kafka","evento nuevaPuja confirmada");
+          await  animatePacket(nodes.kafka, nodes.srvNotif, 'yellow', [
+                "Consumer: Servicio de Notificaciones detecta evento",
+                "Gossip: Sincronizando réplicas del Dominio Auxiliar"
+            ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes");
+         await   animatePacket(nodes.srvNotif, nodes.redis, 'yellow', [
+                "Redis: Actualizando Caché de lectura rápida"
+            ],"com.subastas.data.redis.cache","Guardado de pujas ultra rapido");
+        await animatePacket(nodes.redis, nodes.srvNotif, 'yellow', [
+                "redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd"
+            ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd");
+         await animatePacket(nodes.srvNotif, nodes.users, 'white', [
+                "Proceso completado se ha actualizado correctamente la informacion de las pujas a los 999 clients restantes"
+            ],"com.subastas.web.portal","Mensaje: hay un nuevo pujador , checa la nueva oferta más alta");
 
-    // --- CICLO 1: ESCRITURA (Sincrónico) ---
-    
-    await animatePacket(nodes.users, nodes.gw, 'cyan', [
-        "Inbound: POST /pujas - HTTPS",
-        "Discovery: Lookup /servicios/subastas/líder",
-        "Gossip: Estado HEALTHY confirmado"
-    ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
+            const userDots = document.querySelectorAll('.user-dot');
+            userDots.forEach((dot, index) => {
+                setTimeout(() => {
+                    dot.style.background = "yellow";
+                    dot.style.transform = "scale(1.8)";
+                    setTimeout(() => {
+                        dot.style.background = "var(--accent)";
+                        dot.style.transform = "scale(1)";
+                }, 600);
+            }, index * 15);
+            });
 
-    await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
-        "gRPC: Invocando ingresarNuevaPuja()..."
-    ],"com.subastas.core.auction","gRPC: ingresarNuevaPuja()"); //auction significa subasta en ingles
-
-    await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
-        "SQL: Iniciando Transacción ACID",
-        "Commit: Registro persistido en PostgreSQL"
-    ],"com.subastas.data.sql","INSERT INTO pujas...");
-
-    // --- BIFURCACIÓN AQUÍ ---
-    
-    // 1. Packet de regreso al usuario (Confirmación inmediata)
-    // NO usamos 'await' aquí para que ocurra al mismo tiempo que lo demás
-    animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.core.auction","Message: puja success").then(() => {
-        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gateway.main","Message: puja success").then(() => {
-            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.portal","Message: Puja registrada con exito usuario(___) vuelva pronto");
-        });
-    });
-
-    // 2. CICLO 2: NOTIFICACIÓN (Asincrónico/Event-Driven)
-
-    await animatePacket(nodes.srvSub, nodes.kafka, 'yellow', [
-        "Kafka: Publicando evento 'NuevaPujaMax'...",
-        "Broker: Mensaje persistido en Log de eventos"
-    ],"com.subastas.infrastructure.kafka","evento nuevaPuja confirmada");
-
-    await animatePacket(nodes.kafka, nodes.srvNotif, 'yellow', [
-        "Consumer: Servicio de Notificaciones detecta evento",
-        "Gossip: Sincronizando réplicas del Dominio Auxiliar"
-    ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes");
-
-    await animatePacket(nodes.srvNotif, nodes.redis, 'yellow', [
-        "Redis: Actualizando Caché de lectura rápida"
-    ],"com.subastas.data.redis.cache","Guardado de pujas ultra rapido");
-     await animatePacket(nodes.redis, nodes.srvNotif, 'yellow', [
-        "redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd"
-    ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd");
-     await animatePacket(nodes.srvNotif, nodes.users, 'white', [
-        "Proceso completado se ha actualizado correctamente la informacion de las pujas a los 999 clients restantes"
-    ],"com.subastas.web.portal","Mensaje: hay un nuevo pujador , checa la nueva oferta más alta");
-
-    // --- DIFUSIÓN FINAL ---
-    log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
-    
-    const userDots = document.querySelectorAll('.user-dot');
-    userDots.forEach((dot, index) => {
-        setTimeout(() => {
-            dot.style.background = "yellow";
-            dot.style.transform = "scale(1.8)";
             setTimeout(() => {
-                dot.style.background = "var(--accent)";
-                dot.style.transform = "scale(1)";
-            }, 600);
-        }, index * 15);
-    });
+             btn.disabled = false;
+                log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+            }, 2000);
+    }
+    
+    async function simulateBid() {
+            if(users === 0) { addUsers(10); }
+            // Referencias a los elementos
+            const btn = document.getElementById('bid-btn');
+            btn.disabled = true;
+            // --- CICLO 1: ESCRITURA (Sincrónico) ---
+            await animatePacket(nodes.users, nodes.gw, 'cyan', [
+                "Inbound: POST /pujas - HTTPS",
+                "Discovery: Lookup /servicios/subastas/líder",
+                "Gossip: Estado HEALTHY confirmado"
+            ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
 
-    setTimeout(() => {
-        btn.disabled = false;
-        log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
-    }, 2000);
+            await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
+                "gRPC: Invocando ingresarNuevaPuja()..."
+            ],"com.subastas.core.auction","gRPC: ingresarNuevaPuja()"); //auction significa subasta en ingles
+
+            await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
+                "SQL: Iniciando Transacción ACID",
+                "Commit: Registro persistido en PostgreSQL"
+            ],"com.subastas.data.sql","INSERT INTO pujas...");
+
+           
+            await animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.core.auction","Message: puja success");
+             Notificar(nodes.srvSub,'yellow');
+            await animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gateway.main","Message: puja success");
+            await animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.portal","Message: Puja registrada con exito usuario(___) vuelva pronto");
+            // 2. CICLO 2: NOTIFICACIÓN (Asincrónico/Event-Driven)
+
+            
+            // --- DIFUSIÓN FINAL ---
+            log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
+    
+            const userDots = document.querySelectorAll('.user-dot');
+            userDots.forEach((dot, index) => {
+                setTimeout(() => {
+                    dot.style.background = "yellow";
+                    dot.style.transform = "scale(1.8)";
+                    setTimeout(() => {
+                        dot.style.background = "var(--accent)";
+                        dot.style.transform = "scale(1)";
+                }, 600);
+            }, index * 15);
+            });
+
+            setTimeout(() => {
+             btn.disabled = false;
+                log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+            }, 2000);
+        }
+
+        // Función para la Demo 2: Exclusión Mutua
+    async function demoExclusionMutua() {
+        if(users === 0) { addUsers(10); }
+        log.innerText = "Demo: Supongase Dos usuarios pujan al mismo tiempo...";
+    
+
+        animatePacket2(nodes.users, nodes.gw, 'magenta', [
+            "Petición B","Zookeper Autenticar y Enrutar()","...","El gateway descubrio que hay dos usuarios que quieren pujar a la vez"
+        ],"com.subastas.web.portal","nueva Puja (120$)");
+        
+        // Lanzamos dos animaciones casi simultáneas
+        await animatePacket(nodes.users, nodes.gw, 'cyan', [
+            "Petición A","Zookeper Autenticar y Enrutar()","..."
+        ],"com.subastas.gateway.main","nueva Puja (100$)");
+        await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
+            "Srv Subasta:nueva Puja()","Inner SQL: hay una puja mayor a esta?",
+        ],"com.subastas.core.auction","nueva Puja (120$)");
+        await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
+            "Inner SQL: hay una puja mayor a esta?","if(n==true){message= lo sentimos hay una puja mayor a esta}","else{message=la puja ha sido registrada correctamente}"
+        ],"com.subastas.data.postgresql.auction","nueva Puja (120$)");
+        await animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', [
+            "return: message"
+         ],"com.subastas.core.auction","nueva Puja (120$)");
+        
+         Notificar(nodes.srvSub,'yellow');
+        await animatePacket(nodes.srvSub, nodes.gw, 'cyan', [
+            "return: message"
+         ],"com.subastas.gateway.main","nueva Puja (120$)");
+        await animatePacket(nodes.gw, nodes.users, 'cyan', [
+            "return: message"
+         ],"com.subastas.web.portal","nueva Puja (120$)");
+
+         //packet2.remove();
+         await animatePacket(nodes.gw, nodes.srvSub, 'magenta', [
+            "return: message"
+         ],"com.subastas.core.auction","nueva Puja (100$)");
+         
+         await animatePacket(nodes.srvSub, nodes.bdSub, 'magenta', [
+            "Inner SQL: hay una puja mayor a esta?","if(n==true){message= lo sentimos hay una puja mayor a esta}","else{message=la puja ha sido registrada correctamente}"
+        ],"com.subastas.data.postgresql.auction","nueva Puja (120$)");
+        await animatePacket(nodes.bdSub, nodes.srvSub, 'magenta', [
+            "return: message"
+         ],"com.subastas.core.auction","nueva Puja (120$)");
+            Notificar(nodes.srvSub,'yellow');
+         await animatePacket(nodes.srvSub, nodes.gw, 'magenta', [
+            "return: message"
+         ],"com.subastas.gateway.main","nueva Puja (120$)");
+          
+         await animatePacket(nodes.gw, nodes.users, 'magenta', [
+            "return: message"
+         ],"com.subastas.web.portal","nueva Puja (120$)");
+
+            // --- DIFUSIÓN FINAL ---
+            log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
+    
+            const userDots = document.querySelectorAll('.user-dot');
+            userDots.forEach((dot, index) => {
+                setTimeout(() => {
+                    dot.style.background = "yellow";
+                    dot.style.transform = "scale(1.8)";
+                    setTimeout(() => {
+                        dot.style.background = "var(--accent)";
+                        dot.style.transform = "scale(1)";
+                }, 600);
+            }, index * 15);
+            });
+
+            setTimeout(() => {
+             btn.disabled = false;
+                log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+            }, 2000);
+        }
+    async function Login(){
+              if(users === 0) { addUsers(10); }
+            // Referencias a los elementos
+            const btn = document.getElementById('bid-btn');
+            btn.disabled = true;
+            // --- CICLO 1: ESCRITURA (Sincrónico) ---
+            await animatePacket(nodes.users, nodes.gw, 'cyan', [
+                "Inbound: POST /pujas - HTTPS",
+                "Discovery: Lookup /servicios/subastas/líder",
+                "Gossip: Estado HEALTHY confirmado"
+            ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
+
+            await animatePacket(nodes.gw, nodes.srvUser, 'cyan', [
+                "gRPC: Invocando logginususario()..."
+            ],"#","gRPC: logginusuario()", "autentificando datos"); //auction significa subasta en ingles
+            
+            await animatePacket(nodes.srvUser, nodes.bdUser, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+
+            await animatePacket(nodes.bdUser, nodes.srvUser, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+
+            await animatePacket(nodes.srvUser, nodes.gw, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+            await animatePacket(nodes.gw, nodes.users, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+       
+    }
+    async function Catalogo(){
+             if(users === 0) { addUsers(10); }
+            // Referencias a los elementos
+            const btn = document.getElementById('bid-btn');
+            btn.disabled = true;
+            // --- CICLO 1: ESCRITURA (Sincrónico) ---
+            await animatePacket(nodes.users, nodes.gw, 'cyan', [
+                "Inbound: POST /pujas - HTTPS",
+                "Discovery: Lookup /servicios/subastas/líder",
+                "Gossip: Estado HEALTHY confirmado"
+            ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
+
+            await animatePacket(nodes.gw, nodes.srvCatalogo, 'cyan', [
+                "gRPC: Invocando ingresarNuevoProducto()..."
+            ],"com.subastas.core.catalog","gRPC: ingresarProducto()", "autentificando datos"); //auction significa subasta en ingles
+            
+            await animatePacket(nodes.srvCatalogo, nodes.bdCatalogo, 'cyan', [
+                "..."
+            ],"com.subastas.data.mongodb.catalog",""); //auction significa subasta en ingles
+
+            await animatePacket(nodes.bdCatalogo, nodes.srvCatalogo, 'cyan', [
+                "..."
+            ],"com.subastas.core.catalog",""); //auction significa subasta en ingles
+
+            await animatePacket(nodes.srvCatalogo, nodes.gw, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+            await animatePacket(nodes.gw, nodes.users, 'cyan', [
+                "..."
+            ],"#",""); //auction significa subasta en ingles
+            
+    }
+    async function newSubasta(){
+        if(users === 0) { addUsers(10); }
+            // Referencias a los elementos
+            const btn = document.getElementById('bid-btn');
+            btn.disabled = true;
+            // --- CICLO 1: ESCRITURA (Sincrónico) ---
+            await animatePacket(nodes.users, nodes.gw, 'cyan', [
+                "Inbound: POST /pujas - HTTPS",
+                "Discovery: Lookup /servicios/subastas/líder",
+                "Gossip: Estado HEALTHY confirmado"
+            ],"com.subastas.gateway.main","Zookeper Autenticar y Enrutar()");
+
+            await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
+                "gRPC: Invocando ingresarNuevaSubasta()..."
+            ],"com.subastas.core.auction","gRPC: ingresarNuevaSubasta()"); //auction significa subasta en ingles
+
+            await animatePacket(nodes.srvSub, nodes.srvCatalogo, 'cyan', [
+                "Cual articulo quieres subastar?",
+            ],"com.subastas.core.catalog","");
+            await animatePacket(nodes.srvCatalogo, nodes.bdCatalogo, 'cyan', [
+                "MongoDB Insert",
+            ],"com.subastas.core.catalog","");
+            
+             await animatePacket(nodes.bdCatalogo, nodes.srvCatalogo, 'cyan', [
+                "MongoDB Insert","return message"
+            ],"com.subastas.data.mongodb.catalog","");
+
+            await animatePacket(nodes.srvCatalogo, nodes.srvSub, 'cyan', [
+               "return message"
+            ],"com.subastas.core.catalog","");
+            await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
+               "INSERT new SUBASTA"
+            ],"com.subastas.data.postgresql.auction","");
+
+            await animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.core.auction","Message: puja success");
+             Notificar(nodes.srvSub,'yellow');
+            await animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gateway.main","Message: puja success");
+            await animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.portal","Message: Puja registrada con exito usuario(___) vuelva pronto");
+            // 2. CICLO 2: NOTIFICACIÓN (Asincrónico/Event-Driven)
+
+            
+            // --- DIFUSIÓN FINAL ---
+            log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
+    
+            const userDots = document.querySelectorAll('.user-dot');
+            userDots.forEach((dot, index) => {
+                setTimeout(() => {
+                    dot.style.background = "yellow";
+                    dot.style.transform = "scale(1.8)";
+                    setTimeout(() => {
+                        dot.style.background = "var(--accent)";
+                        dot.style.transform = "scale(1)";
+                }, 600);
+            }, index * 15);
+            });
+
+            setTimeout(() => {
+             btn.disabled = false;
+                log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+            }, 2000);
+    }
+// Función para la Demo 3: Service Discovery
+async function demoDiscovery() {
+    if(users === 0) { addUsers(10); }
+    log.innerText = "Demo: Resolución de nombres...";
+    
+    await animatePacket(nodes.users, nodes.gw, 'white', [
+            "Zookeper Autenticar y Enrutar()","Buscando Servicio..."
+        ],"com.subastas.gateway.main","Buscando servicio Subastas");
+    
+    // Pequeño salto a un nodo de Zookeeper (si lo tienes dibujado) o solo log
+    log.innerText = "Consultando Namespace: com.subastas.core.auction";
+    await new Promise(r => setTimeout(r, 1000));
+    
+    log.innerText = "ZooKeeper devolvió IP: 10.0.1.50. Iniciando gRPC...";
+    await animatePacket(nodes.gw, nodes.srvSub, 'white', [
+            "Conexión establecida por IP"
+        ],"com.subastas.core.auction","Buscando servicio Subastas");
+
+        // --- DIFUSIÓN FINAL ---
+            log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
+    
+            const userDots = document.querySelectorAll('.user-dot');
+            userDots.forEach((dot, index) => {
+                setTimeout(() => {
+                    dot.style.background = "yellow";
+                    dot.style.transform = "scale(1.8)";
+                    setTimeout(() => {
+                        dot.style.background = "var(--accent)";
+                        dot.style.transform = "scale(1)";
+                }, 600);
+            }, index * 15);
+            });
+
+            setTimeout(() => {
+             btn.disabled = false;
+                log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+            }, 2000);
+
 }
         let lines = []; 
 

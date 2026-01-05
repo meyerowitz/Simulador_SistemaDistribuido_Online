@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labubu Limited Edition Auction</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #ec4899; /* Rosa estilo Labubu */
+            --secondary: #be185d;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --success: #22c55e;
+            --text-main: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        /* --- SISTEMA DE NOTIFICACIONES --- */
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInRight 0.3s ease-out forwards;
+            min-width: 300px;
+        }
+
+        .toast.success { background: var(--success); border-left: 5px solid #15803d; }
+        .toast.error { background: var(--danger); border-left: 5px solid #991b1b; }
+        .toast.info { background: #3b82f6; border-left: 5px solid #1d4ed8; }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .fade-out { animation: fadeOut 0.5s ease-out forwards; }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
+
+        .auction-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 95%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 0 50px rgba(236, 72, 153, 0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Panel Producto (Labubu) */
+        .product-display {
+            text-align: center;
+            background: #0f172a;
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .labubu-img {
+            width: 220px;
+            height: auto;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .badge-limited {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: var(--primary);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Panel Central de Puja */
+        .price-card {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+        }
+
+        .amount {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--success);
+            display: block;
+            margin: 5px 0;
+        }
+
+        .bid-controls input {
+            width: 90%;
+            padding: 15px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        button:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+        /* Historial Rápido */
+        .history-panel {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+
+
+        .scroll-area {
+            flex-grow: 1;
+            overflow-y: auto; /* Habilita el scroll vertical */
+            padding-right: 10px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column; /* Cambiado para que el scroll funcione natural */
+        }
+
+        /* Estilo del Scrollbar */
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { 
+            background: #2d3a54; 
+            border-radius: 10px; 
+        }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        #bid-history {
+            list-style: none;
+            padding: 0;
+            margin:0
+        }
+
+        .bid-item {
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid var(--primary);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-info { font-size: 0.9rem; font-weight: bold; color: var(--primary); }
+        .user-info span { color: var(--primary); font-size: 0.8rem; display: block; }
+        .bid-val { font-family: monospace; font-weight: bold; color: var(--success); }
+
+        
+        @media (max-width: 768px) {
+            .auction-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="auction-container">
+    <div class="product-display">
+        <span class="badge-limited">Collector's Edition</span>
+        <img src="img/labubu.png" alt="Labubu" class="labubu-img">
+        <h3>Labubu - The Monsters</h3>
+        <p style="color: #94a3b8; font-size: 0.8rem;">Vinyl Art Toy by Kasing Lung</p>
+        
+        <div class="price-card">
+            <span style="font-size: 0.8rem; text-transform: uppercase; color: #94a3b8;">Oferta Actual</span>
+            <span class="amount" id="current-price">$850</span>
+            <div class="bid-controls">
+                <input type="number" id="bid-input" placeholder="Tu oferta...">
+                <button onclick="handleManualBid()">PUJAR AHORA</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-panel">
+        <div style="margin-bottom: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-bolt" style="color: #fbbf24;"></i> LIVE BIDDING FEED
+        </div>
+        <ul id="bid-history">
+            </ul>
+    </div>
+    
+    <div class="history-panel">
+        <div style="margin-bottom: 15px;font-weight: 800; font-size: 0.9rem; letter-spacing: 1px; color: #94a3b8;">
+            <i class="fas fa-bolt" style="color: #fbbf24;"></i> LIVE BIDDING FEED
+        </div>
+        <div class="scroll-area">
+            <ul id="bid-history">
+                </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPrice = 850;
+    const historyList = document.getElementById('bid-history');
+    const priceDisplay = document.getElementById('current-price');
+    const bidInput = document.getElementById('bid-input');
+    const bots = ['hypebeast_99', 'toy_collector', 'vinyl_junkie', 'kasing_fan', 'popmart_pro', 'art_lover'];
+
+    // Sistema de notificaciones
+    function showNotify(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        
+        toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+        notifyContainer.appendChild(toast);
+
+        // Auto eliminar después de 3 segundos
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
+    function addBid(user, amount) {
+        currentPrice = amount;
+        priceDisplay.innerText = `$${currentPrice}`;
+        
+        const li = document.createElement('li');
+        li.className = 'bid-item';
+        li.innerHTML = `
+            <div class="user-info">@${user}</div>
+            <div class="bid-val">$${amount}</div>
+        `;
+        historyList.appendChild(li);
+
+        // Mantener solo los últimos 8 registros
+        if(historyList.children.length > 8) {
+            historyList.removeChild(historyList.firstChild);
+        }
+
+        // Efecto de pulso en el precio
+        priceDisplay.style.transform = "scale(1.1)";
+        setTimeout(() => priceDisplay.style.transform = "scale(1)", 100);
+    }
+
+    function handleManualBid() {
+        const val = parseInt(bidInput.value);
+        if (val > currentPrice) {
+             alert("Felicidades puja procesada , se le reenviara tu puja a todos los demas usuarios");
+            addBid('TÚ', val);
+            bidInput.value = '';
+        } else {
+            alert("¡Debes superar la oferta actual!");
+        }
+    }
+
+    // Motor de alta velocidad
+    function startEngine() {
+        // Tiempo aleatorio rápido (800ms a 3000ms)
+        const delay = Math.random() * 2200 + 800;
+        
+        setTimeout(() => {
+            const bot = bots[Math.floor(Math.random() * bots.length)];
+            const jump = Math.floor(Math.random() * 40) + 10;
+            addBid(bot, currentPrice + jump);
+            startEngine();
+        }, delay);
+    }
+
+    // Inicio
+    addBid('maria_db', 850);
+    startEngine();
+</script>
+
+</body>
+</html>
