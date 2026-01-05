@@ -223,6 +223,51 @@
 .namespace-table tr:hover {
     background: #222;
 }
+
+
+.specs-dashboard {
+    margin-top: 20px;
+    padding: 20px;
+    background: #1e1e2e; /* Un tono ligeramente azulado para diferenciarlo */
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+.specs-dashboard h3 {
+    color: #ff79c6; /* Rosa para resaltar */
+    margin-bottom: 15px;
+}
+
+.specs-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #f8f8f2;
+}
+
+.specs-table td, .specs-table th {
+    padding: 12px;
+    border-bottom: 1px solid #333;
+    text-align: left;
+}
+
+/* Estilos de Etiquetas (Badges) */
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.protocol { background: #44475a; color: #8be9fd; }
+.fuerte { background: #ff5555; color: white; }
+.eventual { background: #50fa7b; color: #282a36; }
+
+.specs-table tr:hover {
+    background: #282a36;
+}
+
+
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/leader-line-new/leader-line.min.js"></script>
 </head>
@@ -403,8 +448,8 @@
     // 1. Packet de regreso al usuario (Confirmación inmediata)
     // NO usamos 'await' aquí para que ocurra al mismo tiempo que lo demás
     animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.core.auction","Message: puja success").then(() => {
-        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gate","Message: puja success").then(() => {
-            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.client","Message: Puja registrada con exito usuario(___) vuelva pronto");
+        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"com.subastas.gateway.main","Message: puja success").then(() => {
+            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"com.subastas.web.portal","Message: Puja registrada con exito usuario(___) vuelva pronto");
         });
     });
 
@@ -413,22 +458,22 @@
     await animatePacket(nodes.srvSub, nodes.kafka, 'yellow', [
         "Kafka: Publicando evento 'NuevaPujaMax'...",
         "Broker: Mensaje persistido en Log de eventos"
-    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+    ],"com.subastas.infrastructure.kafka","evento nuevaPuja confirmada");
 
     await animatePacket(nodes.kafka, nodes.srvNotif, 'yellow', [
         "Consumer: Servicio de Notificaciones detecta evento",
         "Gossip: Sincronizando réplicas del Dominio Auxiliar"
-    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+    ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes");
 
     await animatePacket(nodes.srvNotif, nodes.redis, 'yellow', [
         "Redis: Actualizando Caché de lectura rápida"
-    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+    ],"com.subastas.data.redis.cache","Guardado de pujas ultra rapido");
      await animatePacket(nodes.redis, nodes.srvNotif, 'yellow', [
-        "Redis: Actualizando Caché de lectura rápida"
-    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+        "redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd"
+    ],"com.subastas.aux.notifier","redirigir actualizacion de nuevas pujas a los 999 usuarios restantes via WebSocketd");
      await animatePacket(nodes.srvNotif, nodes.users, 'white', [
-        "Redis: Actualizando Caché de lectura rápida"
-    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+        "Proceso completado se ha actualizado correctamente la informacion de las pujas a los 999 clients restantes"
+    ],"com.subastas.web.portal","Mensaje: hay un nuevo pujador , checa la nueva oferta más alta");
 
     // --- DIFUSIÓN FINAL ---
     log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
@@ -594,6 +639,57 @@ window.addEventListener('resize', () => {
                 <td>Caché Real-time</td>
                 <td><code>com.subastas.data.redis.cache</code></td>
                 <td>Redis</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div class="specs-dashboard">
+    <h3><i class="fas fa-cogs"></i> Especificación de Protocolos y Coordinación</h3>
+    <table class="specs-table">
+        <thead>
+            <tr>
+                <th>Interacción</th>
+                <th>Protocolo</th>
+                <th>Algoritmo / Rol</th>
+                <th>Tipo de Consistencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Cliente ↔ Gateway</strong></td>
+                <td><span class="badge protocol">HTTPS / REST</span></td>
+                <td><strong>Rol:</strong> Proxy Inverso y Auth</td>
+                <td>N/A (Síncrono)</td>
+            </tr>
+            <tr>
+                <td><strong>Gateway ↔ Core</strong></td>
+                <td><span class="badge protocol">gRPC (HTTP/2)</span></td>
+                <td><strong>Descubrimiento:</strong> ZooKeeper SDK</td>
+                <td><span class="badge fuerte">Fuerte (Strong)</span></td>
+            </tr>
+            <tr>
+                <td><strong>Coordinación Core</strong></td>
+                <td><span class="badge protocol">ZAB (ZooKeeper)</span></td>
+                <td><strong>Algoritmo:</strong> Elección de Líder</td>
+                <td><span class="badge fuerte">Linealizable</span></td>
+            </tr>
+            <tr>
+                <td><strong>Core ↔ Auxiliar</strong></td>
+                <td><span class="badge protocol">TCP (Binary Kafka)</span></td>
+                <td><strong>Rol:</strong> Publicador de Eventos</td>
+                <td><span class="badge eventual">Eventual</span></td>
+            </tr>
+            <tr>
+                <td><strong>Sincronización Aux</strong></td>
+                <td><span class="badge protocol">Gossip / Raft</span></td>
+                <td><strong>Algoritmo:</strong> Propagación Epidémica</td>
+                <td><span class="badge eventual">Eventual</span></td>
+            </tr>
+            <tr>
+                <td><strong>Auxiliar ↔ Cliente</strong></td>
+                <td><span class="badge protocol">WebSockets (WSS)</span></td>
+                <td><strong>Rol:</strong> Push Real-time</td>
+                <td>N/A (Asíncrono)</td>
             </tr>
         </tbody>
     </table>
