@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador de Flujo - Data Access Tier</title>
+    <style>
+        :root {
+            --bg-color: #001529;
+            --core-color: #5a57bb;
+            --kafka-color: #ff7a18;
+            --aux-color: #4a47a3;
+            --accent: #00d4ff;
+        }
+        .leader-line-label {
+            background: rgba(0, 21, 41, 0.8); /* Fondo oscuro para resaltar el texto */
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #00d4ff !important; /* Color turquesa para el texto */
+            font-size: 11px !important;
+            font-family: 'Segoe UI', sans-serif !important;
+            font-weight: bold;
+        }
+        .leader-line {
+    z-index: 5 !important;
+}
+        body { 
+            background: var(--bg-color); 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { color: var(--accent); margin-bottom: 5px; }
+        
+        .tier {
+            border-left: 2px dashed rgba(255,255,255,0.2);
+            border-right: 2px dashed rgba(255,255,255,0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            width: 350px;
+            position: relative;
+        }
+
+        .tier-container {
+            border: 2px dashed rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            margin: 20px;
+            width: 300px;
+            position: relative;
+        }
+
+        .tier-label {
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        /* Cajas de Dominios */
+        .box { 
+            width: 250px; 
+            padding: 20px;
+            border-radius: 12px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            font-size: 14px; 
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            
+        }
+
+         .simple-box { 
+            width: 250px; 
+            padding: 20px;
+            border-radius: 12px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            font-size: 14px; 
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .core { background: var(--core-color); border: 2px solid #7b78ff; }
+        .kafka { background: var(--kafka-color); border: 2px solid #ffa96b; color: #000; }
+        .aux { background: var(--aux-color); border: 2px solid #635fdb; }
+
+        /* Sección de Usuarios (Presentation Side) */
+        .presentation-side {
+            position: fixed;
+            left: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 150px;
+            text-align: center;
+        }
+
+        #users-container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+            justify-content: center;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            min-height: 200px;
+            min-width: 100px;
+            margin-top: 80px;
+        }
+
+        .user-dot { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; transition: all 0.3s; }
+
+        /* Animación del Paquete */
+        .packet { 
+            width: 15px; height: 15px; background: yellow; border-radius: 50%; 
+            position: absolute; z-index: 100; box-shadow: 0 0 15px yellow; 
+        }
+
+        /* Controles */
+        .controls { 
+            background: #112a45; 
+            padding: 25px; 
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        button { 
+            padding: 12px 24px; 
+            cursor: pointer; 
+            background: var(--accent); 
+            border: none; 
+            font-weight: bold; 
+            border-radius: 6px; 
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.05); opacity: 0.9; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #status-log { margin-top: 15px; font-style: italic; color: #00ffcc; font-size: 0.9em; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/leader-line-new/leader-line.min.js"></script>
+</head>
+<body>
+    
+    <h1>Simulador de Sistema de Subastas</h1>
+    
+    <div style="border-bottom: 2px dashed #fffefe81  ; width: 100%;"></div>
+    <div style="flex-direction: row; width:100% ;display: flex;">
+
+        
+    <div class="tier" >
+        
+        <div class="tier-label">Presentation Tier</div>
+        <div class="tier-container" style="height:510px; align-items: center;display: flex"  id="users">
+        <div id="users-container"></div>
+        <p><small>Usuarios: <span id="user-count">0</span></small></p>
+        </div>
+    </div>
+
+    <div class="tier" style="width: 190px; " >
+        <div class="tier-label"> Application Tier</div>
+        <div class="tier-container" style="width:130px; height:510px">
+            <div class="box" style="background: #e8a818;height: 470px; width:100px" id="Api-Gateway">API/Gateway</div>
+        </div>
+    </div>
+
+    <div class="tier" style="width: 400px;">
+        <div class="tier-label">Data Access Tier</div>
+        <div class="tier-container" style="margin-top:20px; padding: 30px; ">
+            <div class="box core" id="box-core" style="padding: 35px;">DOMINIO CORE<br><small>(Consistencia Fuerte CP)</small>
+                <div style="display: flex; flex-direction: row; margin-top: 5px;  ">
+                    <div class="simple-box " style="width: 50px; margin-right: 5px; background-color: #e8a818; " id="Serv-Subastas">Servicio Subastas</div>
+                    <div class="simple-box " style="width: 50px; margin-right: 5px; background-color:#ff7a18;" id="Serv-Usuarios" >Servicio usuarios</div>
+                    <div class="simple-box " style="width: 50px; background-color:#e8a818;" id="Serv-Catalogo" >Servicio Catalogo</div>
+                </div>
+            </div>
+            <div class="box kafka" id="box-kafka">KAFKA<br><small>(Middleware Pub/Sub)</small></div>
+            <div class="box aux" id="box-aux">DOMINIO AUXILIAR<br><small>(Alta Disponibilidad AP)</small>
+                <div style="display: flex; flex-direction: row; margin-top: 5px;  ">
+                    <div class="simple-box " style="width: 70px; margin-right: 5px; background-color: #e8a818;font-size: 12px;" id="Broker-Mensajes" >Broker de mensajes Kafka</div>
+                    <div class="simple-box " style="width: 70px; background-color:#ff7a18; font-size: 12px;" id="Serv-Notificaciones" >Servicio de Notificaciones</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tier">
+        <div class="tier-label">Data Tier</div>
+        <div class="tier-container" style="height: 500px;" >
+            <div class="box core" id="data-tier-db" style="margin-top: 5px;  ">
+                <div class="simple-box " style="width: 50px; margin-bottom: 5px; background-color: #e8a818;" id="BD-usuarios" >BD MySQL <br> usuarios</div>
+                <div class="simple-box " style="width: 50px; margin-bottom: 5px; background-color:#ff7a18;" id="BD-Subastas">BD PostgreSQL <br> Subastas</div>
+                <div class="simple-box " style="width: 50px; background-color:#e8a818;" id="Serv-Catalogo">MongoDB <br> Catalogo </div>
+            </div>
+            <div class="box core" id="data-tier-redis" id="Serv-Redis"><small>(Cache Redis de pujas)</small>
+                 <div class="simple-box " style="width: 50px; background-color:#e8a818;"  >Redis</div>
+            </div>
+        </div>
+    </div>
+
+<div class="controls">
+        <button onclick="addUsers(20)">+ 20 Usuarios</button>
+        <button onclick="simulateBid()" id="bid-btn">Ejecutar Puja en Tiempo Real</button>
+        <div id="status-log">Esperando interacción...</div>
+    </div>
+    </div>
+    <div style="border-bottom: 2px dashed #fffefe81  ; width: 100%;"></div>
+
+
+    
+
+    <script>
+        
+        let users = 0;
+        const log = document.getElementById('status-log');
+
+        function addUsers(n) {
+            users += n;
+            document.getElementById('user-count').innerText = users;
+            const container = document.getElementById('users-container');
+            for(let i=0; i<n; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'user-dot';
+                container.appendChild(dot);
+            }
+            log.innerText = `Estado: ${n} nuevos usuarios conectados al sistema.`;
+        }
+
+        
+// Variable global para mantener la referencia al paquete actual
+    async function animatePacket(fromEl, toEl, color, logsArray = [],nombreDominio = "", accion = "") {
+    // 1. Crear un NUEVO paquete exclusivo para esta llamada
+    const packet = document.createElement('div');
+    packet.className = 'packet';
+    
+    // 2. Crear el cartelito H2 flotante
+    const label = document.createElement('h2');
+    label.style.position = 'absolute';
+    label.style.color = color;
+    label.style.fontSize = '12px';
+    label.style.textAlign = 'center';
+    label.style.pointerEvents = 'none'; // Para que no interfiera con clics
+    label.style.left = '10px';
+    label.style.top='10px';
+    label.innerHTML = `<span style="color:white">${nombreDominio}</span><br>${accion}`;
+    document.body.appendChild(label);
+
+    const start = fromEl.getBoundingClientRect();
+    const end = toEl.getBoundingClientRect();
+    
+    packet.style.background = color;
+    packet.style.boxShadow = `0 0 15px ${color}`;
+    packet.style.left = (start.left + start.width/2 - 7) + 'px';
+    packet.style.top = (start.top + start.height/2 - 7) + 'px';
+    document.body.appendChild(packet);
+
+    
+    // 2. Ejecutar la animación
+    const animation = packet.animate([
+        { left: packet.style.left, top: packet.style.top },
+        { left: (end.left + end.width/2 - 7) + 'px', top: (end.top + end.height/2 - 7) + 'px' }
+    ], { duration: 700, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+
+    await animation.finished;
+
+    // 3. Mostrar los logs (secuencialmente)
+    for (const message of logsArray) {
+        log.innerText = `Log: ${message}`;
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    // 4. Eliminar el paquete al terminar su tramo
+    // (Opcional: puedes dejarlo un segundo antes de borrarlo)
+    packet.remove();
+    label.remove();
+}
+
+
+        async function simulateBid() {
+    if(users === 0) { addUsers(10); }
+    
+    // Referencias a los elementos
+    const nodes = {
+        users: document.getElementById('users-container'),
+        gw: document.getElementById('Api-Gateway'),
+        srvSub: document.getElementById('Serv-Subastas'),
+        bdSub: document.getElementById('BD-Subastas'),
+        kafka: document.getElementById('box-kafka'),
+        srvNotif: document.getElementById('Serv-Notificaciones'),
+        redis: document.getElementById('data-tier-redis')
+    };
+
+    const btn = document.getElementById('bid-btn');
+    btn.disabled = true;
+
+    // --- CICLO 1: ESCRITURA (Sincrónico) ---
+    
+    await animatePacket(nodes.users, nodes.gw, 'cyan', [
+        "Inbound: POST /pujas - HTTPS",
+        "Discovery: Lookup /servicios/subastas/líder",
+        "Gossip: Estado HEALTHY confirmado"
+    ],"com.subastas.gateway","Autenticar y Enrutar()");
+
+    await animatePacket(nodes.gw, nodes.srvSub, 'cyan', [
+        "gRPC: Invocando ingresarNuevaPuja()..."
+    ],"com.subastas.core","gRPC: ingresarNuevaPuja()");
+
+    await animatePacket(nodes.srvSub, nodes.bdSub, 'cyan', [
+        "SQL: Iniciando Transacción ACID",
+        "Commit: Registro persistido en PostgreSQL"
+    ],"com.subastas.data.sql","INSERT INTO pujas...");
+
+    // --- BIFURCACIÓN AQUÍ ---
+    
+    // 1. Packet de regreso al usuario (Confirmación inmediata)
+    // NO usamos 'await' aquí para que ocurra al mismo tiempo que lo demás
+    animatePacket(nodes.bdSub, nodes.srvSub, 'cyan', ["puja registrada de manera persistente"],"com.subastas.ui","INSERT INTO pujas...").then(() => {
+        animatePacket(nodes.srvSub, nodes.gw, 'cyan', ["env mensaje A"],"INSERT INTO pujas...","INSERT INTO pujas...").then(() => {
+            animatePacket(nodes.gw, nodes.users, 'white', ["mensaje A: Puja registrada correctamente"],"INSERT INTO pujas...","INSERT INTO pujas...");
+        });
+    });
+
+    // 2. CICLO 2: NOTIFICACIÓN (Asincrónico/Event-Driven)
+    // Este inicia desde el servicio de subastas hacia Kafka
+    log.innerText = "La puja fue registrada correctamente Estado: Disparando evento asincrónico a Kafka...";
+    
+    await animatePacket(nodes.srvSub, nodes.kafka, 'yellow', [
+        "Kafka: Publicando evento 'NuevaPujaMax'...",
+        "Broker: Mensaje persistido en Log de eventos"
+    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+
+    await animatePacket(nodes.kafka, nodes.srvNotif, 'yellow', [
+        "Consumer: Servicio de Notificaciones detecta evento",
+        "Gossip: Sincronizando réplicas del Dominio Auxiliar"
+    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+
+    await animatePacket(nodes.srvNotif, nodes.redis, 'yellow', [
+        "Redis: Actualizando Caché de lectura rápida"
+    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+     await animatePacket(nodes.redis, nodes.srvNotif, 'yellow', [
+        "Redis: Actualizando Caché de lectura rápida"
+    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+     await animatePacket(nodes.srvNotif, nodes.users, 'white', [
+        "Redis: Actualizando Caché de lectura rápida"
+    ],"INSERT INTO pujas...","INSERT INTO pujas...");
+
+    // --- DIFUSIÓN FINAL ---
+    log.innerText = "Estado: ¡Hay un nuevo pujador! Notificando a todos vía WebSockets...";
+    
+    const userDots = document.querySelectorAll('.user-dot');
+    userDots.forEach((dot, index) => {
+        setTimeout(() => {
+            dot.style.background = "yellow";
+            dot.style.transform = "scale(1.8)";
+            setTimeout(() => {
+                dot.style.background = "var(--accent)";
+                dot.style.transform = "scale(1)";
+            }, 600);
+        }, index * 15);
+    });
+
+    setTimeout(() => {
+        btn.disabled = false;
+        log.innerText = "Sistema Sincronizado: Todos los usuarios tienen el precio al día.";
+    }, 2000);
+}
+        let lines = []; 
+
+function updateAllArrows() {
+    // 1. Limpiar líneas previas con seguridad
+    if (lines.length > 0) {
+        lines.forEach(line => {
+            try { line.remove(); } catch(e) {}
+        });
+        lines = [];
+    }
+
+    const commonOptions = {
+        color: 'rgba(0, 212, 255, 0.7)',
+        size: 3,
+        path: 'fluid',
+        startPlug: 'disc',
+        endPlug: 'arrow3'
+    };
+
+    const addLine = (startId, endId, labelText, customColor) => {
+        const startEl = document.getElementById(startId);
+        const endEl = document.getElementById(endId);
+        
+        if (startEl && endEl) {
+            // Usamos 'middleLabel' en lugar de 'caption' para mayor compatibilidad
+            const line = new LeaderLine(startEl, endEl, {
+                ...commonOptions,
+                color: customColor || commonOptions.color,
+                middleLabel: labelText 
+            });
+            lines.push(line);
+        } else {
+            console.warn(`No se encontró el elemento: ${!startEl ? startId : endId}`);
+        }
+    };
+
+    // Ejecutar creación
+    addLine('users-container', 'Api-Gateway', 'HTTPS');
+    addLine('Api-Gateway', 'box-core', 'gRPC');
+    // Nota: Revisa que el ID sea 'box-aux', no 'box-auxiliar'
+    addLine('Api-Gateway', 'box-aux', 'gRPC');
+    addLine('box-core', 'box-kafka', 'Event', '#ff7a18');
+    addLine('box-kafka', 'box-aux', 'Sub', '#ff7a18');
+    addLine('box-core', 'data-tier-db', 'SQL');
+    addLine('box-aux', 'data-tier-redis', 'Cache');
+
+    //user-container --> API-Gateway --> Domain Core(Servicio de subastas: función ingresar nueva puja()) -->API Gateway-> usuario (mensaje:puja registrada correctamente) and Domain Auxiliar (Broker de mensajeria Kafka )--> Serv-Notificaciones --> Usuarios (mensaje: hay un nuevo pujador y una nueva puja maxima , atentos todos)
+}
+
+// 3. Ejecución segura al cargar
+window.addEventListener('load', () => {
+    // Esperamos a que el navegador termine de acomodar todo
+    setTimeout(() => {
+        updateAllArrows();
+    }, 500); 
+});
+
+// 4. Reposicionar en scroll y resize
+window.addEventListener('scroll', () => {
+    lines.forEach(line => line.position());
+}, { passive: true });
+
+window.addEventListener('resize', () => {
+    updateAllArrows();
+});
+    </script>
+</body>
+
+</html>
