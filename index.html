@@ -266,7 +266,81 @@
     background: #282a36;
 }
 
+/* --- ESTILOS RESPONSIVE --- */
 
+/* Ajustes para Tablets (Pantallas menores a 1024px) */
+@media (max-width: 1024px) {
+    div[style*="flex-direction: row"] {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .tier {
+        width: 45% !important; /* Dos columnas en tablets */
+        margin: 10px 1%;
+    }
+}
+
+/* Ajustes para Móviles (Pantallas menores a 768px) */
+@media (max-width: 768px) {
+    .body {
+        padding: 10px;
+    }
+
+    /* Convertimos el flujo horizontal principal a vertical */
+    div[style*="flex-direction: row"] {
+        flex-direction: column !important;
+        align-items: center;
+    }
+
+    .tier {
+        width: 95% !important; /* Una columna que ocupa casi todo el ancho */
+        border-left: none;
+        border-right: none;
+        border-bottom: 2px dashed rgba(255,255,255,0.2);
+        padding: 15px 0;
+    }
+
+    .tier-container {
+        width: 90% !important;
+        height: auto !important; /* Permitimos que crezca según el contenido */
+        min-height: 200px;
+        margin: 10px 0;
+    }
+
+    .box, .simple-box {
+        width: 100% !important; /* Cajas adaptables al ancho del contenedor */
+        max-width: 280px;
+    }
+
+    /* Ajuste específico para el área de usuarios */
+    #users-container {
+        margin-top: 20px;
+        min-height: 100px;
+    }
+
+    /* Ajuste para la sección de controles */
+    .controls {
+        width: 100%;
+        padding: 15px;
+    }
+
+    button {
+        width: 100%; /* Botones grandes y fáciles de tocar en móvil */
+        margin: 5px 0;
+    }
+}
+
+/* Ajuste para el simulador de líneas (LeaderLine) */
+@media (max-width: 768px) {
+    /* Nota: Las líneas de LeaderLine usan posiciones absolutas. 
+       Al cambiar a diseño vertical, es posible que necesites llamar 
+       a la función .position() de tus líneas en JS para que se refresquen.
+    */
+    .leader-line {
+        display: none; /* Opcional: ocultar líneas en móvil si se amontonan */
+    }
+}
 
     </style>
     <script src="https://cdn.jsdelivr.net/npm/leader-line-new/leader-line.min.js"></script>
